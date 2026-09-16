@@ -1,0 +1,21 @@
+{
+  "name": "probably-crypto-showcase",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=.env --experimental-strip-types server.ts",
+    "start": "npm run dev",
+    "check": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/market.test.ts tests/shared-cache.test.ts tests/trade-samples.test.ts",
+    "test:browser": "playwright test"
+  },
+  "dependencies": {
+    "@typesafe-ai/sdk": "0.6.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^25.0.0",
+    "typescript": "^5.9.3"
+  }
+}

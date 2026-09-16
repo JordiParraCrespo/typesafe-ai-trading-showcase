@@ -49,8 +49,8 @@ export function sharedStore(): SharedStore | null {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
   if (url && token) return new RedisStore(url, token);
-  if (url || token || process.env.VERCEL) throw new Error('Shared Redis must be configured before serving AI on Vercel');
-  return null; // Single-process local development only.
+  if (url || token) throw new Error('Both Redis URL and token must be configured');
+  return null; // Default: per-instance memory, including on Vercel.
 }
 
 export async function sharedSnapshot<T extends { at: number }>(

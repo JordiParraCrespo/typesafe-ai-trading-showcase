@@ -19,6 +19,9 @@ test('history excludes incomplete candles, sorts timestamps, and rejects stale o
 test('concurrent visitors share one request; a failed coin is excluded from AI input', async () => {
   const originalFetch = globalThis.fetch;
   const originalKey = process.env.TYPESAFE_API_KEY;
+  const originalVercel = process.env.VERCEL;
+  const originalNow = Date.now;
+  process.env.VERCEL = '1';
   process.env.TYPESAFE_API_KEY = 'test-key-not-real';
   let inferenceCalls = 0;
   globalThis.fetch = async (input, init) => {
@@ -51,7 +54,19 @@ test('concurrent visitors share one request; a failed coin is excluded from AI i
     assert.equal(a.analysis?.decisions.XRP, undefined);
     await getSnapshot();
     assert.equal(inferenceCalls, 1);
+    // Expired prices refresh, but the last AI response is reused for a minute.
+    Date.now = () => now + 20_000;
+    const refreshed = await getSnapshot();
+    assert.notEqual(refreshed, a);
+    assert.equal(refreshed.analysis, a.analysis);
+    assert.equal(inferenceCalls, 1);
+    Date.now = () => now + 61_000;
+    await Promise.all([getSnapshot(), getSnapshot()]);
+    assert.equal(inferenceCalls, 2);
   } finally {
+    Date.now = originalNow;
+    if (originalVercel === undefined) delete process.env.VERCEL;
+    else process.env.VERCEL = originalVercel;
     globalThis.fetch = originalFetch;
     if (originalKey === undefined) delete process.env.TYPESAFE_API_KEY;
     else process.env.TYPESAFE_API_KEY = originalKey;

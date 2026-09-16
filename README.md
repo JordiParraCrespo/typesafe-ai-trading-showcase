@@ -20,13 +20,17 @@ Prices refresh approximately every 15 seconds. Each coin's last 60 seconds of ac
 
 The trades endpoint supplies the latest 1,000 trades. If that page does not cover the window, is stale, or contains too few populated buckets, the app withholds that coin's AI signal. It does not fabricate samples. Longer chart ranges use historical one-minute candles.
 
-One inference request covers all available coins, at most once per 60 seconds for each shared cache namespace/model. This is polled near-real-time data, not a streaming execution system.
+One inference request covers all available coins, at most once per 60 seconds per warm server instance. This is polled near-real-time data, not a streaming execution system.
 
 Each card's JSON toggle shows already-fetched results, exact analysis samples, timestamps, confidence, and the total token count for the shared request. Toggling does not make network requests or use extra tokens.
 
-## Shared server cache on Vercel
+## Server cache on Vercel
 
-Connect an Upstash Redis database to the Vercel project and configure these server-only variables:
+No database is required. By default, prices and samples are cached in server memory for 12 seconds, candle history for 60 seconds, and AI responses are reused between analysis attempts (at least 60 seconds apart). Concurrent requests on one instance share a single in-flight refresh. The API key stays server-side.
+
+Memory resets when an instance restarts. Separate instances have separate caches and may each spend tokens; there is no global usage limit. The CDN also caches successful API responses for 12 seconds.
+
+For optional cross-instance coordination, connect an Upstash Redis database and configure these server-only variables:
 
 - TYPESAFE_API_KEY
 - UPSTASH_REDIS_REST_URL
@@ -37,7 +41,7 @@ KV_REST_API_URL and KV_REST_API_TOKEN are also supported.
 
 All instances must use the same Redis database and namespace to share results. Redis stores the snapshot for 10 minutes with a 12-second freshness window. One worker holds a refresh lease; other visitors receive the saved snapshot. A separate atomic 60-second inference cooldown is reserved before calling TypeSafe, including when inference fails. A worker can publish only while it owns the lease.
 
-If Redis is unavailable, the server does not fall back to independent paid AI calls. Vercel refuses inference without Redis configuration. Local development without Redis uses the original single-process shared memory cache; that is not a distributed cache.
+If configured Redis is unavailable, the server fails closed. With no Redis credentials, both local development and Vercel use per-instance memory instead.
 
 Requests trigger refreshes; there is no paid background loop with no visitors. Pause stops only this browser's polling, not other visitors. Viewing JSON is free of extra inference. Shared caching reduces duplicate usage but does not impose a total token or spending budget.
 
@@ -45,7 +49,7 @@ Redis credentials have not yet been configured or live-verified. Distributed beh
 
 ## Deploy
 
-The project has a static frontend in public/, a function at api/market.ts, and vercel.json. Import into Vercel using the Other framework preset, connect Redis, set the server variables, and deploy. No deployment has been performed.
+The project has a static frontend in public/, a function at api/market.ts, and vercel.json. Import into Vercel using the Other framework preset, set TYPESAFE_API_KEY as a server-only environment variable, and deploy. Redis is optional.
 
 ## Checks
 

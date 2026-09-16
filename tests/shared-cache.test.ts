@@ -71,13 +71,15 @@ test('an expired lease cannot publish over another worker', async () => {
   assert.equal(store.values.has('market'), false);
 });
 
-test('Vercel requires shared cache configuration', () => {
+test('Vercel defaults to memory without Redis; partial Redis configuration fails closed', () => {
   const names = ['VERCEL', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN', 'KV_REST_API_URL', 'KV_REST_API_TOKEN'];
   const original = names.map(name => process.env[name]);
   try {
     for (const name of names) delete process.env[name];
     process.env.VERCEL = '1';
-    assert.throws(() => sharedStore(), /Redis must be configured/);
+    assert.equal(sharedStore(), null);
+    process.env.UPSTASH_REDIS_REST_URL = 'https://example.com';
+    assert.throws(() => sharedStore(), /Both Redis/);
   } finally {
     names.forEach((name, i) => { if (original[i] === undefined) delete process.env[name]; else process.env[name] = original[i]; });
   }
